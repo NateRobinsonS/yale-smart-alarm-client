@@ -19,6 +19,10 @@ YALE_LOCK_STATE_UNLOCKED = "unlocked"
 YALE_LOCK_STATE_DOOR_OPEN = "dooropen"
 YALE_LOCK_STATE_UNKNOWN = "unknown"
 
+YALE_DOOR_CONTACT_STATE_CLOSED = "closed"
+YALE_DOOR_CONTACT_STATE_OPEN = "open"
+YALE_DOOR_CONTACT_STATE_UNKNOWN = "unknown"
+
 class AuthenticationError(Exception):
     def __init__(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
@@ -33,6 +37,7 @@ class YaleSmartAlarmClient:
     _ENDPOINT_GET_MODE = "/api/panel/mode/"
     _ENDPOINT_SET_MODE = "/api/panel/mode/"
     _ENDPOINT_DEVICES_STATUS = "/api/panel/device_status/"
+    _ENDPOINT_HISTORY = "/api/event/report/"
 
     _YALE_AUTH_TOKEN = 'VnVWWDZYVjlXSUNzVHJhcUVpdVNCUHBwZ3ZPakxUeXNsRU1LUHBjdTpkd3RPbE15WEtENUJ5ZW1GWHV0am55eGhrc0U3V0ZFY2p0dFcyOXRaSWNuWHlSWHFsWVBEZ1BSZE1xczF4R3VwVTlxa1o4UE5ubGlQanY5Z2hBZFFtMHpsM0h4V3dlS0ZBcGZzakpMcW1GMm1HR1lXRlpad01MRkw3MGR0bmNndQ=='
 
@@ -85,9 +90,25 @@ class YaleSmartAlarmClient:
                 locks[name] = state
         return locks
 
+    def get_doors_status(self):
+        devices = self._get_authenticated(self._ENDPOINT_DEVICES_STATUS)
+        doors = {}
+        for device in devices['data']:
+            if device['type'] == "device_type.door_contact":
+                state = device['status1']
+                name = device['name']
+                if "device_status.dc_close" in state:
+                    state = YALE_DOOR_CONTACT_STATE_CLOSED
+                elif "device_status.dc_open" in state:
+                    state = YALE_DOOR_CONTACT_STATE_OPEN
+                else:
+                    state = YALE_DOOR_CONTACT_STATE_UNKNOWN
+                doors[name] = state
+        return doors
+
+
     def get_armed_status(self):
         alarm_state = self._get_authenticated(self._ENDPOINT_GET_MODE)
-
         return alarm_state.get('data')[0].get('mode')
 
     def set_armed_status(self, mode):
